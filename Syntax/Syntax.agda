@@ -97,6 +97,9 @@ syntax DO-syntax Γ₁ Γ₂ t = Γ₁ ⊢ t ∈ Γ₂ ⊸?
 PreType : (Θ : TyCtx) (Γ₁ Γ₂ : RawCtx) → Set
 PreType Θ Γ₁ Γ₂ = Σ (Raw Θ Γ₁ Γ₂) λ A → DecentType A
 
+_∣_/_⊸Ty = PreType
+
+
 mkPreType : ∀ {Θ Γ₁ Γ₂} {A : Raw Θ Γ₁ Γ₂} → DecentType A → PreType Θ Γ₁ Γ₂
 mkPreType {A = A} p = (A , p)
 
@@ -179,6 +182,8 @@ projFpData₂ ((Γ , f , A) ∷ D) = ((projCtxMor₂ f , proj₂ A) , projFpData
 instPT : ∀ {Θ Γ₁ Γ₂ A} → PreType Θ Γ₁ (Γ₂ ↑ A) → PreTerm Γ₁ Ø → PreType Θ Γ₁ Γ₂
 instPT (B , p) (t , q) = mkPreType (DT-inst _ _ p q)
 
+_⊙_ = instPT
+
 tyVarPT : {Θ : TyCtx} (Γ₁ : RawCtx) {Γ₂ : RawCtx} → TyVar Θ Γ₂ → PreType Θ Γ₁ Γ₂
 tyVarPT Γ₁ X = mkPreType (DT-tyVar _ X)
 
@@ -246,7 +251,7 @@ instTyWCtxMorP : ∀ {Θ Γ₁ Γ₂ Γ₃} →
 instTyWCtxMorP {Θ} {Γ₁} {Ø}      {Γ₃} A [] =
   subst (PreType Θ Γ₁) (proj₂ identity Γ₃) A
 instTyWCtxMorP {Θ} {Γ₁} {x ∷ Γ₂} {Γ₃} A (s ∷ f) =
-  instPT (instTyWCtxMorP (subst (PreType Θ Γ₁) (mvVar _ Γ₃ x) A) f) s
+  (instTyWCtxMorP (subst (PreType Θ Γ₁) (mvVar _ Γ₃ x) A) f) ⊙ s
 
 _§ₜ_ : ∀ {Θ Γ₁ Γ₂} →
        PreType Θ Γ₁ Γ₂ → CtxMorP Γ₁ Γ₂ → PreType Θ Γ₁ Ø
@@ -454,7 +459,7 @@ substPT : ∀ {Θ Γ₁ Γ Γ₂} → PreType Θ Γ₁ Γ → CtxMorP Γ₂ Γ�
 substPT (._ , DT-⊤ Θ Γ)               f = ⊤-PT _ _
 substPT (._ , DT-tyVar Γ₁ X)          f = tyVarPT _ X
 substPT (._ , DT-inst B t p q)        f =
-  instPT (substPT (B , p) f) (substPO (t , q) f)
+  (substPT (B , p) f) ⊙ (substPO (t , q) f)
 substPT (._ , DT-paramAbstr Γ₁ {A} p) f =
   paramAbstrPT _ (substPT (A , p) (extendP _ f))
 substPT (._ , DT-fp Γ₁ ρ D q)         f = fpPT _ ρ (mkFpDataP {D = D} q)
@@ -467,9 +472,20 @@ weakenPT'' Γ A =
   subst (λ u → PreType _ u _) (proj₂ identity Γ) (weakenPT' Γ A)
 
 -- | Project a specific variable out
-projVar : (Γ₁ Γ₂ : RawCtx) → PreTerm (Γ₂ ++ ∗ ∷ Γ₁) Ø
-projVar Γ₁ Ø        = varPO zero
-projVar Γ₁ (∗ ∷ Γ₂) = weakenPO₁ _ (projVar Γ₁ Γ₂)
+projVar : (Γ₁ Γ₂ : RawCtx) (A : U) → PreTerm (Γ₂ ++ A ∷ Γ₁) Ø
+projVar Γ₁ Ø        A = varPO zero
+projVar Γ₁ (∗ ∷ Γ₂) A = weakenPO₁ _ (projVar Γ₁ Γ₂ A)
+
+extendProj : {Γ₁ Γ₂ : RawCtx} → (Γ₃ Γ₄ : RawCtx) →
+             CtxMorP (Γ₄ ++ Γ₃ ++ Γ₂) Γ₁ →
+             CtxMorP (Γ₄ ++ Γ₃ ++ Γ₂) (Γ₃ ++ Γ₁)
+extendProj Ø Γ₄ f = f
+extendProj {Γ₁} {Γ₂ = Γ₂} (A ∷ Γ₃) Γ₄ f =
+  let p = (assoc Γ₄ (A ∷ Ø) (Γ₃ ++ Γ₂))
+      f' = subst (λ u → CtxMorP u Γ₁) (PE.sym p) f
+      g = extendProj {Γ₁} {Γ₂} Γ₃ (Γ₄ ↑ A) f'
+      g' = subst (λ u → CtxMorP u (Γ₃ ++ Γ₁)) p g
+  in projVar (Γ₃ ++ Γ₂) Γ₄ A ∷ g'
 
 weakenTyVar₁ : ∀{Θ₂ Γ₁} (Θ₁ : TyCtx) (Γ : RawCtx) →
                TyVar (Θ₁ ++ Θ₂) Γ₁ → TyVar (Θ₁ ++ Γ ∷ Θ₂) Γ₁
@@ -492,7 +508,7 @@ weakenTy'₁ Θ₁ Γ ._ (DT-⊤ ._ Γ₁) =
 weakenTy'₁ Θ₁ Γ .(tyVarRaw Γ₁ X) (DT-tyVar Γ₁ X) =
   tyVarPT Γ₁ (weakenTyVar₁ Θ₁ Γ X)
 weakenTy'₁ Θ₁ Γ .(instRaw B t) (DT-inst B t p q) =
-  instPT (weakenTy'₁ Θ₁ Γ B p) (t , q)
+  (weakenTy'₁ Θ₁ Γ B p) ⊙ (t , q)
 weakenTy'₁ Θ₁ Γ .(paramAbstrRaw Γ₁ A) (DT-paramAbstr Γ₁ {A} p) =
   paramAbstrPT Γ₁ (weakenTy'₁ Θ₁ Γ A p)
 weakenTy'₁ Θ₁ Γ .(fpRaw Γ₁ ρ D) (DT-fp Γ₁ ρ D p) =
@@ -540,7 +556,7 @@ substTy' : ∀ {Θ₁ Θ₂ Γ₁ Γ₂} →
 substTy' {Θ₁} ._ (DT-⊤ Θ Γ)               f = ⊤-PT Θ₁ _
 substTy' {Θ₁} ._ (DT-tyVar Γ₁ X)          f = getTy f X
 substTy' {Θ₁} ._ (DT-inst B t p q)        f =
-  instPT (substTy' B p f) (t , q)
+  (substTy' B p f) ⊙ (t , q)
 substTy' {Θ₁} ._ (DT-paramAbstr Γ₁ {A} p) f =
   paramAbstrPT Γ₁ (substTy' A p f)
 substTy' {Θ₁} ._ (DT-fp Γ₁ ρ D p)         f =
