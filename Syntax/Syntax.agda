@@ -322,7 +322,7 @@ weakenDT₁ = weakenDT Ø
 weakenDecentCtxMor : {Γ₁ Γ₂ : RawCtx} {f : CtxMor Raw Γ₁ Γ₂} →
                      (A : U) → DecentCtxMor f →
                      DecentCtxMor (Vec.map (weaken₁ A) f)
-weakenDecentCtxMor {Γ₂ = Ø}      {f}     A p        = tt
+weakenDecentCtxMor {Γ₂ = Ø}      {[]}    A p        = tt
 weakenDecentCtxMor {Γ₂ = x ∷ Γ₂} {t ∷ f} A (p , ps) =
   (weakenDO₁ A p , weakenDecentCtxMor A ps)
 

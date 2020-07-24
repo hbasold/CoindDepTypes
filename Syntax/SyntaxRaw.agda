@@ -5,6 +5,7 @@ open import Data.Empty
 open import Data.Unit as Unit
 open import Data.Nat
 open import Data.List as List renaming ([] to Ø; [_] to [_]L)
+open import Data.List.Properties using (++-monoid)
 open import NonEmptyList as NList
 open import Data.Vec as Vec hiding ([_]; _++_)
 open import Data.Product as Prod
@@ -67,7 +68,7 @@ RawCtx : Set
 RawCtx = Ctx U
 
 instance ctx-monoid : Monoid _ _
-ctx-monoid = List.monoid U
+ctx-monoid = ++-monoid U
 
 RawVar : RawCtx → U → Set
 RawVar = Var
@@ -76,7 +77,7 @@ TyCtx : Set
 TyCtx = Ctx RawCtx
 
 instance tyctx-monoid : Monoid _ _
-tyctx-monoid = List.monoid RawCtx
+tyctx-monoid = ++-monoid RawCtx
 
 TyVar : TyCtx → RawCtx → Set
 TyVar = Var
