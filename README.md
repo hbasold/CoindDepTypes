@@ -7,6 +7,10 @@ were given in that paper.
 In the future, I would like to have at least the typing rules and the proof of
 subject reduction formalised.
 
+# Usage
+
+Requires Agda version 2.6.0.1 and the master branch of the standard library (will be v0.18).
+
 ## References
 
 [1] H. Basold and H. Geuvers, ‘Type Theory based on Dependent Inductive and
